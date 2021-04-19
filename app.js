@@ -1,7 +1,10 @@
+require('dotenv').config() // dotenv pkg always at top.
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
+const encrypt = require("mongoose-encryption");
 
 const app = express();
 
@@ -21,9 +24,11 @@ const userSchema = new mongoose.Schema({
     password: String
 });
 
+const secret = process.env.SECRET;
+// encryptedField contains array of fields that r to be encrypted.
+userSchema.plugin(encrypt, {secret: secret, encryptedFields: ["password"]})
+
 const User = new mongoose.model("User", userSchema);
-
-
 
 
 app.get("/", (req, res) => {
@@ -45,6 +50,7 @@ app.post("/register", (req, res) => {
         password: req.body.password
     });
 
+    // while saving, it will auto encrypt
     newUser.save((err) => {
         if (err)
             res.send(err);
@@ -59,6 +65,7 @@ app.post("/login", (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
 
+    // while find, it will auto decrypt
     User.findOne({
         email: username
     }, function (err, foundUser) {
