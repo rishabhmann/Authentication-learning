@@ -5,7 +5,10 @@ const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 // const encrypt = require("mongoose-encryption"); // level2 encryption package
-const md5 = require("md5"); // hashing function package
+//const md5 = require("md5"); // level 3 :hashing function package
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+
 
 const app = express();
 
@@ -46,37 +49,41 @@ app.get("/register", (req, res) => {
 
 app.post("/register", (req, res) => {
 
-    const newUser = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
+    bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+        const newUser = new User({
+            email: req.body.username,
+            password: hash
+        });
+
+        // while saving, it will auto encrypt
+        newUser.save((err) => {
+            if (err)
+                res.send(err);
+            else
+                res.render("secrets");
+        });
     });
 
-    // while saving, it will auto encrypt
-    newUser.save((err) => {
-        if (err)
-            res.send(err);
-        else
-            res.render("secrets");
-    });
+
 });
 
 app.post("/login", (req, res) => {
 
     const username = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
 
     // while find, it will auto decrypt
-    User.findOne({
-        email: username
-    }, function (err, foundUser) {
+    User.findOne({email: username}, function (err, foundUser) {
         if (err)
             console.log(err);
         else {
             if (foundUser) {
-                if (foundUser.password === password)
-                    res.render("secrets");
-                else
-                    res.send("You have type Incorrect Password!! Please Enter Correct Password");
+                bcrypt.compare(password, foundUser.password, function (err, result) {
+                    if (result === true)
+                        res.render("secrets");
+                    else
+                        res.send("You have type Incorrect Password!! Please Enter Correct Password");
+                });
             } else
                 res.send("You haven't Registered Yet, Please register at " + __dirname + "/register");
         }
